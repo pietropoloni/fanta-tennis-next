@@ -1,49 +1,12 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase-browser";
 
-// ==== CONFIG (same rules as your HTML) ====
+// ==== CONFIG ====
 const MAX_PER_BAND = 3;
 const MAX_BUDGET = 900_000_000; // 900M
 const STORAGE_KEY_PICKS = "ft.picks.v1";
 const STORAGE_KEY_MYNAME = "ft.myTeamName.v1";
-
-// ==== DATA (your static Top 100 snapshot) ====
-const PLAYERS = [
-  {rank:1, name:"Jannik Sinner"},{rank:2, name:"Carlos Alcaraz"},{rank:3, name:"Alexander Zverev"},
-  {rank:4, name:"Taylor Fritz"},{rank:5, name:"Jack Draper"},{rank:6, name:"Ben Shelton"},
-  {rank:7, name:"Novak Djokovic"},{rank:8, name:"Alex de Minaur"},{rank:9, name:"Karen Khachanov"},
-  {rank:10, name:"Lorenzo Musetti"},{rank:11, name:"Holger Rune"},{rank:12, name:"Casper Ruud"},
-  {rank:13, name:"Daniil Medvedev"},{rank:14, name:"Tommy Paul"},{rank:15, name:"Andrey Rublev"},
-  {rank:16, name:"Jakub Mensik"},{rank:17, name:"Frances Tiafoe"},{rank:18, name:"Alejandro Davidovich Fokina"},
-  {rank:19, name:"Francisco Cerundolo"},{rank:20, name:"Arthur Fils"},{rank:21, name:"Jiri Lehecka"},
-  {rank:22, name:"Tomas Machac"},{rank:23, name:"Ugo Humbert"},{rank:24, name:"Alexander Bublik"},
-  {rank:25, name:"Grigor Dimitrov"},{rank:26, name:"Flavio Cobolli"},{rank:27, name:"Felix Auger-Aliassime"},
-  {rank:28, name:"Stefanos Tsitsipas"},{rank:29, name:"Denis Shapovalov"},{rank:30, name:"Tallon Griekspoor"},
-  {rank:31, name:"Brandon Nakashima"},{rank:32, name:"Alex Michelsen"},{rank:33, name:"Gabriel Diallo"},
-  {rank:34, name:"Luciano Darderi"},{rank:35, name:"Cameron Norrie"},{rank:36, name:"Alexei Popyrin"},
-  {rank:37, name:"Giovanni Mpetshi Perricard"},{rank:38, name:"Alexandre Muller"},{rank:39, name:"Sebastian Baez"},
-  {rank:40, name:"Corentin Moutet"},{rank:41, name:"Nuno Borges"},{rank:42, name:"Miomir Kecmanovic"},
-  {rank:43, name:"Camilo Ugo Carabelli"},{rank:44, name:"Jaume Munar"},{rank:45, name:"Joao Fonseca"},
-  {rank:46, name:"Lorenzo Sonego"},{rank:47, name:"Roberto Bautista Agut"},{rank:48, name:"Zizou Bergs"},
-  {rank:49, name:"Gael Monfils"},{rank:50, name:"Learner Tien"},{rank:51, name:"Benjamin Bonzi"},
-  {rank:52, name:"Matteo Berrettini"},{rank:53, name:"Fabian Marozsan"},{rank:54, name:"Francisco Comesana"},
-  {rank:55, name:"Marcos Giron"},{rank:56, name:"Daniel Altmaier"},{rank:57, name:"Hamad Medjedovic"},
-  {rank:58, name:"Jordan Thompson"},{rank:59, name:"Tomas Martin Etcheverry"},{rank:60, name:"Jacob Fearnley"},
-  {rank:61, name:"Damir Dzumhur"},{rank:62, name:"Marin Cilic"},{rank:63, name:"Marton Fucsovics"},
-  {rank:64, name:"Matteo Arnaldi"},{rank:65, name:"Mattia Bellucci"},{rank:66, name:"Pedro Martinez"},
-  {rank:67, name:"Reilly Opelka"},{rank:68, name:"Hubert Hurkacz"},{rank:69, name:"Terence Atmane"},
-  {rank:70, name:"Quentin Halys"},{rank:71, name:"Aleksandar Kovacevic"},{rank:72, name:"Laslo Djere"},
-  {rank:73, name:"Botic van de Zandschulp"},{rank:74, name:"Yunchaokete Bu"},{rank:75, name:"Sebastian Korda"},
-  {rank:76, name:"Kamil Majchrzak"},{rank:77, name:"Adrian Mannarino"},{rank:78, name:"Mariano Navone"},
-  {rank:79, name:"Arthur Cazaux"},{rank:80, name:"David Goffin"},{rank:81, name:"Christopher O'Connell"},
-  {rank:82, name:"Arthur Rinderknech"},{rank:83, name:"Jesper de Jong"},{rank:84, name:"Ethan Quinn"},
-  {rank:85, name:"Adam Walton"},{rank:86, name:"Luca Nardi"},{rank:87, name:"Roberto Carballes Baena"},
-  {rank:88, name:"Juan Manuel Cerundolo"},{rank:89, name:"Vit Kopriva"},{rank:90, name:"Kei Nishikori"},
-  {rank:91, name:"Alexander Shevchenko"},{rank:92, name:"Jenson Brooksby"},{rank:93, name:"Filip Misolic"},
-  {rank:94, name:"Roman Safiullin"},{rank:95, name:"Aleksandar Vukic"},{rank:96, name:"Tristan Schoolkate"},
-  {rank:97, name:"Dalibor Svrcina"},{rank:98, name:"Valentin Royer"},{rank:99, name:"Carlos Taberner"},
-  {rank:100, name:"Mackenzie McDonald"}
-];
 
 // ==== HELPERS ====
 const bandFor = (rank) => (rank <= 10 ? "A" : rank <= 30 ? "B" : rank <= 50 ? "C" : "D");
@@ -52,13 +15,36 @@ const formatM = (n) => `${n / 1_000_000}M`;
 const idOf = (p) => `${p.rank}|${p.name}`;
 
 export default function MyTeamPage() {
+  // players from Supabase
+  const [players, setPlayers] = useState([]);
+  const [loadingPlayers, setLoadingPlayers] = useState(true);
+  const [loadErr, setLoadErr] = useState("");
+
   // picks = { A:[], B:[], C:[], D:[] }
   const [picks, setPicks] = useState({ A: [], B: [], C: [], D: [] });
   const [filter, setFilter] = useState("all");
   const [teamName, setTeamName] = useState("");
   const [toast, setToast] = useState("");
 
-  // load from localStorage once
+  // 1) Fetch players from Supabase (public read)
+  useEffect(() => {
+    (async () => {
+      setLoadingPlayers(true);
+      setLoadErr("");
+      const { data, error } = await supabase
+        .from("players")
+        .select("id,name,ranking")
+        .order("ranking", { ascending: true });
+      if (error) {
+        setLoadErr(error.message);
+      } else {
+        setPlayers((data || []).map((r) => ({ rank: r.ranking, name: r.name })));
+      }
+      setLoadingPlayers(false);
+    })();
+  }, []);
+
+  // 2) Load saved picks + team name from localStorage once
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY_PICKS);
@@ -68,7 +54,7 @@ export default function MyTeamPage() {
     } catch {}
   }, []);
 
-  // persist on change
+  // 3) Persist picks on change
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_PICKS, JSON.stringify(picks));
@@ -86,9 +72,9 @@ export default function MyTeamPage() {
   const budgetLeft = MAX_BUDGET - spent;
 
   const filteredPlayers = useMemo(() => {
-    if (filter === "all") return PLAYERS;
-    return PLAYERS.filter((p) => bandFor(p.rank) === filter);
-  }, [filter]);
+    if (filter === "all") return players;
+    return players.filter((p) => bandFor(p.rank) === filter);
+  }, [filter, players]);
 
   const isSelected = (id) => {
     return picks.A.includes(id) || picks.B.includes(id) || picks.C.includes(id) || picks.D.includes(id);
@@ -145,7 +131,7 @@ export default function MyTeamPage() {
       return `${label}: ${list || "—"}`;
     };
     const text = [
-      "FantaTennis — My Picks (snapshot)",
+      "FantaTennis — My Picks",
       line("A", "A (1–10)"),
       line("B", "B (11–30)"),
       line("C", "C (31–50)"),
@@ -200,6 +186,7 @@ export default function MyTeamPage() {
         </div>
       </div>
 
+      {/* Band / budget status */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginTop: 10 }}>
         <label>
           Filter band:&nbsp;
@@ -268,9 +255,15 @@ export default function MyTeamPage() {
         )}
       </div>
 
+      {/* Status */}
       <div style={{ marginTop: 8, color: "#6b7280" }}>
-        Showing {filteredPlayers.length} players • Filter:{" "}
-        {filter === "all" ? "All" : `Band ${filter}`} • Budget left: <b>{formatM(budgetLeft)}</b>. Click a player to add/remove.
+        {loadingPlayers
+          ? "Loading players…"
+          : loadErr
+          ? `Error loading players: ${loadErr}`
+          : `Showing ${filteredPlayers.length} players • Filter: ${filter === "all" ? "All" : `Band ${filter}`} • Budget left: ${formatM(
+              budgetLeft
+            )}. Click a player to add/remove (max 3 per band).`}
       </div>
 
       {/* Player grid */}
@@ -282,63 +275,65 @@ export default function MyTeamPage() {
           margin: "16px 0 28px"
         }}
       >
-        {filteredPlayers.map((p) => {
-          const selected = isSelected(idOf(p));
-          const band = bandFor(p.rank);
-          return (
-            <button
-              key={`${p.rank}-${p.name}`}
-              onClick={() => togglePick(p)}
-              style={{
-                textAlign: "left",
-                border: selected ? "2px solid #7dd3fc" : "1px solid #e5e7eb",
-                outline: "none",
-                borderRadius: 12,
-                padding: 12,
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                background: "#fff"
-              }}
-              aria-pressed={selected}
-              title={selected ? "Click to remove from picks" : "Click to add to picks"}
-            >
-              <div
+        {!loadingPlayers &&
+          !loadErr &&
+          filteredPlayers.map((p) => {
+            const selected = isSelected(idOf(p));
+            const band = bandFor(p.rank);
+            return (
+              <button
+                key={`${p.rank}-${p.name}`}
+                onClick={() => togglePick(p)}
                 style={{
-                  width: 44,
-                  height: 44,
+                  textAlign: "left",
+                  border: selected ? "2px solid #7dd3fc" : "1px solid #e5e7eb",
+                  outline: "none",
                   borderRadius: 12,
-                  display: "grid",
-                  placeItems: "center",
-                  background: "#f9fafb",
-                  border: "1px solid #e5e7eb",
-                  fontWeight: 700
+                  padding: 12,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  background: "#fff"
                 }}
+                aria-pressed={selected}
+                title={selected ? "Click to remove from picks" : "Click to add to picks"}
               >
-                {p.rank}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700 }}>{p.name}</div>
-                <div style={{ color: "#6b7280", fontSize: 14 }}>Cost {formatM(costFor(p.rank))}</div>
-              </div>
-              <div
-                aria-hidden="true"
-                style={{
-                  fontWeight: 800,
-                  width: 28,
-                  height: 28,
-                  borderRadius: 8,
-                  display: "grid",
-                  placeItems: "center",
-                  background: band === "A" ? "#ef4444" : band === "B" ? "#3b82f6" : band === "C" ? "#10b981" : "#f59e0b",
-                  color: "#fff"
-                }}
-              >
-                {band}
-              </div>
-            </button>
-          );
-        })}
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    display: "grid",
+                    placeItems: "center",
+                    background: "#f9fafb",
+                    border: "1px solid #e5e7eb",
+                    fontWeight: 700
+                  }}
+                >
+                  {p.rank}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700 }}>{p.name}</div>
+                  <div style={{ color: "#6b7280", fontSize: 14 }}>Cost {formatM(costFor(p.rank))}</div>
+                </div>
+                <div
+                  aria-hidden="true"
+                  style={{
+                    fontWeight: 800,
+                    width: 28,
+                    height: 28,
+                    borderRadius: 8,
+                    display: "grid",
+                    placeItems: "center",
+                    background: band === "A" ? "#ef4444" : band === "B" ? "#3b82f6" : band === "C" ? "#10b981" : "#f59e0b",
+                    color: "#fff"
+                  }}
+                >
+                  {band}
+                </div>
+              </button>
+            );
+          })}
       </div>
 
       {/* Toast */}
