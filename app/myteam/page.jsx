@@ -1,16 +1,30 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase-browser";
 
 // ==== CONFIG ====
 const MAX_PER_BAND = 3;
-const MAX_BUDGET = 900_000_000; // 900M
+const MAX_BUDGET = 500_000_000; // 500M total budget
 const STORAGE_KEY_PICKS = "ft.picks.v1";
 const STORAGE_KEY_MYNAME = "ft.myTeamName.v1";
 
+// ==== COSTS (millions) by rank 1..100 ====
+const COST_BY_RANK_M = [
+  160,160,100,90,80,75,70,65,60,55,
+  62,61,58,56,54,52,50,48,46,44,
+  42,40,38,36,34,32,30,28,26,24,
+  30,29,28,27,26,25,25,24,24,23,
+  23,22,22,22,21,21,21,20,20,20,
+  23,22,22,21,21,21,20,20,20,20,
+  19,19,19,19,18,18,18,18,17,17,
+  17,17,16,16,16,16,16,16,15,15,
+  15,15,15,15,15,15,15,15,15,15,
+  15,15,15,15,15,15,15,15,15,15
+];
+
 // ==== HELPERS ====
 const bandFor = (rank) => (rank <= 10 ? "A" : rank <= 30 ? "B" : rank <= 50 ? "C" : "D");
-const costFor = (rank) => (101 - rank) * 1_000_000;
+const costFor = (rank) => (COST_BY_RANK_M[rank - 1] || 0) * 1_000_000; // convert M -> absolute
 const formatM = (n) => `${n / 1_000_000}M`;
 const idOf = (p) => `${p.rank}|${p.name}`;
 
@@ -25,7 +39,8 @@ export default function MyTeamPage() {
   const [filter, setFilter] = useState("all");
   const [teamName, setTeamName] = useState("");
   const [toast, setToast] = useState("");
-  const [saving, setSaving] = useState(false); // also used while loading from cloud
+  const [saving, setSaving] = useState(false);
+  const triedAutoLoad = useRef(false);
 
   // 1) Fetch players from Supabase (public read)
   useEffect(() => {
@@ -63,6 +78,7 @@ export default function MyTeamPage() {
     } catch {}
   }, [picks]);
 
+  // Derived values
   const spent = useMemo(() => {
     return Object.values(picks)
       .flat()
@@ -231,7 +247,7 @@ export default function MyTeamPage() {
     }
   }
 
-  // === NEW: Load from Supabase ===
+  // === Load from Supabase ===
   async function loadFromCloud() {
     try {
       if (loadingPlayers) {
@@ -288,6 +304,21 @@ export default function MyTeamPage() {
     }
   }
 
+  // Auto-load from cloud once players are ready and user is signed in
+  useEffect(() => {
+    (async () => {
+      if (triedAutoLoad.current) return;
+      if (loadingPlayers) return;
+      triedAutoLoad.current = true;
+
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user) {
+        await loadFromCloud();
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadingPlayers]);
+
   const counts = {
     A: picks.A.length,
     B: picks.B.length,
@@ -299,7 +330,7 @@ export default function MyTeamPage() {
     <main style={{ maxWidth: 1100, margin: "0 auto", padding: 16 }}>
       <h1 style={{ marginBottom: 8 }}>My Team</h1>
       <p style={{ color: "#6b7280", marginTop: 0 }}>
-        Pick up to <b>3 players per band</b>. Budget: <b>900M</b>. Cost = <code>(101 - rank) × 1M</code>.
+        Pick up to <b>3 players per band</b>. Budget: <b>500M</b>. Costs use a custom table by rank.
       </p>
 
       {/* Controls */}
@@ -497,4 +528,3 @@ export default function MyTeamPage() {
     </main>
   );
 }
-
