@@ -38,7 +38,7 @@ export default function MyTeamPage() {
       if (error) {
         setLoadErr(error.message);
       } else {
-        setPlayers((data || []).map((r) => ({ rank: r.ranking, name: r.name })));
+        setPlayers((data || []).map((r) => ({ id: r.id, rank: r.ranking, name: r.name })));
       }
       setLoadingPlayers(false);
     })();
