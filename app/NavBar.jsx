@@ -1,8 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase-browser";
 
 export default function NavBar() {
   const [open, setOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
     function onKey(e) { if (e.key === "Escape") setOpen(false); }
@@ -10,9 +12,30 @@ export default function NavBar() {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
+  // Load current user once
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      const email = data?.user?.email || "";
+      setUserEmail(email);
+    })();
+  }, []);
+
+  async function signOut() {
+    await supabase.auth.signOut();
+    setOpen(false);
+    window.location.href = "/";
+  }
+
   const neonBlue = "#00b3ff";   // neon-ish blue
   const yellow = "#fff200";     // bright yellow
   const blueBorder = "#0084c7"; // darker blue border
+
+  const menuLinks = [
+    ["Home", "/"],
+    ["My Team", "/myteam"],
+    ["Leaderboard", "/leaderboard"],
+  ];
 
   return (
     <header
@@ -53,7 +76,9 @@ export default function NavBar() {
 
         <div style={{ fontWeight: 900, letterSpacing: 0.6 }}>FantaTennis</div>
 
-        <div style={{ marginLeft: "auto" }} />
+        <div style={{ marginLeft: "auto", fontWeight: 700 }}>
+          {userEmail ? `Signed in: ${userEmail}` : ""}
+        </div>
       </div>
 
       {open && (
@@ -79,6 +104,9 @@ export default function NavBar() {
               padding: 16,
               borderRight: `2px solid ${blueBorder}`,
               boxShadow: "8px 0 30px rgba(0,0,0,0.35)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
             }}
           >
             <div
@@ -86,7 +114,7 @@ export default function NavBar() {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                marginBottom: 12,
+                marginBottom: 8,
               }}
             >
               <div style={{ fontWeight: 900 }}>Menu</div>
@@ -106,17 +134,30 @@ export default function NavBar() {
               </button>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {[
-                ["Home", "/"],
-                ["Sign Up", "/signup"],
-                ["Sign In", "/signin"],
-                ["My Team", "/myteam"],
-                ["Leaderboard", "/leaderboard"],
-              ].map(([label, href]) => (
+            {menuLinks.map(([label, href]) => (
+              <a
+                key={href}
+                href={href}
+                onClick={() => setOpen(false)}
+                style={{
+                  display: "block",
+                  padding: "10px 12px",
+                  border: `2px solid ${yellow}`,
+                  borderRadius: 12,
+                  fontWeight: 800,
+                  textDecoration: "none",
+                  color: yellow,
+                  background: "transparent",
+                }}
+              >
+                {label}
+              </a>
+            ))}
+
+            {!userEmail ? (
+              <>
                 <a
-                  key={href}
-                  href={href}
+                  href="/signup"
                   onClick={() => setOpen(false)}
                   style={{
                     display: "block",
@@ -129,10 +170,42 @@ export default function NavBar() {
                     background: "transparent",
                   }}
                 >
-                  {label}
+                  Sign Up
                 </a>
-              ))}
-            </div>
+                <a
+                  href="/signin"
+                  onClick={() => setOpen(false)}
+                  style={{
+                    display: "block",
+                    padding: "10px 12px",
+                    border: `2px solid ${yellow}`,
+                    borderRadius: 12,
+                    fontWeight: 800,
+                    textDecoration: "none",
+                    color: yellow,
+                    background: "transparent",
+                  }}
+                >
+                  Sign In
+                </a>
+              </>
+            ) : (
+              <button
+                onClick={signOut}
+                style={{
+                  padding: "10px 12px",
+                  border: `2px solid ${yellow}`,
+                  borderRadius: 12,
+                  fontWeight: 800,
+                  color: yellow,
+                  background: "transparent",
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                Sign Out
+              </button>
+            )}
           </nav>
         </div>
       )}
