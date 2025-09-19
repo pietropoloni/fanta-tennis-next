@@ -25,7 +25,7 @@ export default function MyTeamPage() {
   const [filter, setFilter] = useState("all");
   const [teamName, setTeamName] = useState("");
   const [toast, setToast] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState(false); // also used while loading from cloud
 
   // 1) Fetch players from Supabase (public read)
   useEffect(() => {
@@ -39,7 +39,7 @@ export default function MyTeamPage() {
       if (error) {
         setLoadErr(error.message);
       } else {
-        // keep DB id so we can save roster picks
+        // keep DB id so we can map roster picks
         setPlayers((data || []).map((r) => ({ id: r.id, rank: r.ranking, name: r.name })));
       }
       setLoadingPlayers(false);
@@ -158,7 +158,7 @@ export default function MyTeamPage() {
     }
   }
 
-  // === NEW: Save to Supabase ===
+  // === Save to Supabase ===
   async function saveToCloud() {
     try {
       setSaving(true);
@@ -210,15 +210,10 @@ export default function MyTeamPage() {
       // map selected "rank|name" to DB player IDs
       const keyToId = new Map(players.map((p) => [idOf(p), p.id]));
       const selectedKeys = Object.values(picks).flat();
-      const playerIds = selectedKeys
-        .map((k) => keyToId.get(k))
-        .filter(Boolean);
+      const playerIds = selectedKeys.map((k) => keyToId.get(k)).filter(Boolean);
 
       // replace roster picks: delete old, then insert new
-      const { error: delErr } = await supabase
-        .from("roster_picks")
-        .delete()
-        .eq("team_id", teamId);
+      const { error: delErr } = await supabase.from("roster_picks").delete().eq("team_id", teamId);
       if (delErr) throw delErr;
 
       if (playerIds.length > 0) {
@@ -231,6 +226,63 @@ export default function MyTeamPage() {
     } catch (e) {
       console.error(e);
       showToast("Save failed. Check policies / console.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // === NEW: Load from Supabase ===
+  async function loadFromCloud() {
+    try {
+      if (loadingPlayers) {
+        showToast("Please wait for players to load…");
+        return;
+      }
+      setSaving(true);
+
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData?.user;
+      if (!user) {
+        window.location.href = "/signin";
+        return;
+      }
+
+      // get my team
+      const { data: team, error: tErr } = await supabase
+        .from("teams")
+        .select("id,name")
+        .eq("owner_id", user.id)
+        .limit(1)
+        .maybeSingle();
+      if (tErr) throw tErr;
+      if (!team) {
+        showToast("No cloud team found.");
+        return;
+      }
+      setTeamName(team.name || "");
+
+      // get roster picks for that team
+      const { data: rp, error: rpErr } = await supabase
+        .from("roster_picks")
+        .select("player_id")
+        .eq("team_id", team.id);
+      if (rpErr) throw rpErr;
+
+      // map player IDs to "rank|name"
+      const idToPlayer = new Map(players.map((p) => [p.id, p]));
+      const next = { A: [], B: [], C: [], D: [] };
+      for (const row of rp || []) {
+        const p = idToPlayer.get(row.player_id);
+        if (!p) continue;
+        const k = idOf(p);
+        const b = bandFor(p.rank);
+        if (next[b].length < MAX_PER_BAND) next[b].push(k);
+      }
+      setPicks(next);
+      showToast("Loaded from cloud.");
+    } catch (e) {
+      console.error(e);
+      showToast("Load failed.");
     } finally {
       setSaving(false);
     }
@@ -265,6 +317,9 @@ export default function MyTeamPage() {
           <button onClick={saveTeamName}>💾 Save team name</button>
           <button onClick={saveToCloud} disabled={saving || loadingPlayers}>
             {saving ? "Saving…" : "☁ Save to cloud"}
+          </button>
+          <button onClick={loadFromCloud} disabled={saving || loadingPlayers}>
+            {saving ? "…" : "↓ Load from cloud"}
           </button>
         </div>
       </div>
@@ -321,7 +376,7 @@ export default function MyTeamPage() {
                     display: "grid",
                     placeItems: "center",
                     background: "#f9fafb",
-                    border: "1px solid "#e5e7eb",
+                    border: "1px solid #e5e7eb",
                     fontWeight: 700
                   }}
                 >
@@ -442,3 +497,4 @@ export default function MyTeamPage() {
     </main>
   );
 }
+
