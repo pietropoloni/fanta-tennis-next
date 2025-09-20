@@ -222,7 +222,3 @@ export default function LeaderboardPage() {
     </main>
   );
 }
-      )}
-    </main>
-  );
-}
