@@ -39,31 +39,40 @@ export default function AdminResultsPage() {
     setUploadLog((prev) => (prev ? prev + "\n" + s : s));
   }
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getUser();
-        if (!data?.user) {
-          window.location.href = "/signin?next=/admin/results";
-          return;
-        }
-        setUser(data.user);
+ // ...
+import { ADMIN_EMAILS } from "@/lib/config";
+// ...
 
-        // preload players (for name or ranking mapping)
-        const { data: P, error: pErr } = await supabase
-          .from("players")
-          .select("id,ranking,name");
-        if (pErr) throw pErr;
-        setPlayers(P || []);
-
-        await refresh();
-        setStatus("ready");
-      } catch (e) {
-        setErr(e.message || String(e));
-        setStatus("ready");
+useEffect(() => {
+  (async () => {
+    try {
+      const { data } = await supabase.auth.getUser();
+      const email = (data?.user?.email || "").toLowerCase();
+      if (!email) {
+        window.location.href = "/signin?next=/admin/results";
+        return;
       }
-    })();
-  }, []);
+      if (!ADMIN_EMAILS.includes(email)) {
+        window.location.href = "/"; // not an admin
+        return;
+      }
+      setUser(data.user);
+
+      // preload players…
+      const { data: P, error: pErr } = await supabase
+        .from("players")
+        .select("id,ranking,name");
+      if (pErr) throw pErr;
+      setPlayers(P || []);
+
+      await refresh();
+      setStatus("ready");
+    } catch (e) {
+      setErr(e.message || String(e));
+      setStatus("ready");
+    }
+  })();
+}, []);
 
   async function refresh() {
     const { data, error } = await supabase
