@@ -41,40 +41,36 @@ export default function AdminResultsPage() {
     setUploadLog((prev) => (prev ? prev + "\n" + s : s));
   }
 
- // ...
-import { ADMIN_EMAILS } from "@/lib/config";
-// ...
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        const email = (data?.user?.email || "").toLowerCase();
+        if (!email) {
+          window.location.href = "/signin?next=/admin/results";
+          return;
+        }
+        if (!ADMIN_EMAILS.includes(email)) {
+          window.location.href = "/"; // not an admin
+          return;
+        }
+        setUser(data.user);
 
-useEffect(() => {
-  (async () => {
-    try {
-      const { data } = await supabase.auth.getUser();
-      const email = (data?.user?.email || "").toLowerCase();
-      if (!email) {
-        window.location.href = "/signin?next=/admin/results";
-        return;
+        // preload players…
+        const { data: P, error: pErr } = await supabase
+          .from("players")
+          .select("id,ranking,name");
+        if (pErr) throw pErr;
+        setPlayers(P || []);
+
+        await refresh();
+        setStatus("ready");
+      } catch (e) {
+        setErr(e.message || String(e));
+        setStatus("ready");
       }
-      if (!ADMIN_EMAILS.includes(email)) {
-        window.location.href = "/"; // not an admin
-        return;
-      }
-      setUser(data.user);
-
-      // preload players…
-      const { data: P, error: pErr } = await supabase
-        .from("players")
-        .select("id,ranking,name");
-      if (pErr) throw pErr;
-      setPlayers(P || []);
-
-      await refresh();
-      setStatus("ready");
-    } catch (e) {
-      setErr(e.message || String(e));
-      setStatus("ready");
-    }
-  })();
-}, []);
+    })();
+  }, []);
 
   async function refresh() {
     const { data, error } = await supabase
@@ -166,7 +162,7 @@ useEffect(() => {
         const line = raw.trim();
         if (!line || line.startsWith("#")) continue;
         // split by comma or tab
-        const parts = line.split(/[,|\t]/).map((s) => s.trim());
+        const parts = line.split(/(?:,|\t)/).map((s) => s.trim());
         if (parts.length < 2) {
           logLine(`Skip: "${line}" (need 2 columns)`);
           skipped++;
@@ -241,6 +237,7 @@ useEffect(() => {
     }
   }
 
+  // (kept for potential future use)
   const ownerIds = useMemo(() => new Set(list.map((t) => t.owner_id)), [list]);
 
   return (
@@ -487,6 +484,11 @@ useEffect(() => {
             )}
           </div>
         </>
+      )}
+    </main>
+  );
+}
+
       )}
     </main>
   );
