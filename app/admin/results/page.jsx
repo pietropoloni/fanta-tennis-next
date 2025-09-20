@@ -1,5 +1,7 @@
 "use client";
-import { useEffect, useState, useMemo } from "react";
+
+import React, { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase-browser";
 import { ADMIN_EMAILS } from "@/lib/config";
 
 const neonBlue = "#00b3ff";
