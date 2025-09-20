@@ -1,10 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase-browser";
 
 export default function NavBar() {
   const [open, setOpen] = useState(false);
   const [userEmail, setUserEmail] = useState("");
+  const pathname = usePathname();
 
   useEffect(() => {
     function onKey(e) { if (e.key === "Escape") setOpen(false); }
@@ -12,12 +14,10 @@ export default function NavBar() {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  // Load current user once
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getUser();
-      const email = data?.user?.email || "";
-      setUserEmail(email);
+      setUserEmail(data?.user?.email || "");
     })();
   }, []);
 
@@ -27,15 +27,27 @@ export default function NavBar() {
     window.location.href = "/";
   }
 
-  const neonBlue = "#00b3ff";   // neon-ish blue
-  const yellow = "#fff200";     // bright yellow
-  const blueBorder = "#0084c7"; // darker blue border
+  const neonBlue = "#00b3ff";
+  const yellow = "#fff200";
+  const blueBorder = "#0084c7";
 
   const menuLinks = [
     ["Home", "/"],
     ["My Team", "/myteam"],
     ["Leaderboard", "/leaderboard"],
+    ["Account", "/account"],
   ];
+
+  const linkStyle = (href) => ({
+    display: "block",
+    padding: "10px 12px",
+    border: `2px solid ${yellow}`,
+    borderRadius: 12,
+    fontWeight: 800,
+    textDecoration: "none",
+    color: yellow,
+    background: pathname === href ? "rgba(0,0,0,0.18)" : "transparent",
+  });
 
   return (
     <header
@@ -85,11 +97,7 @@ export default function NavBar() {
         <div
           aria-hidden={!open}
           onClick={() => setOpen(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.45)",
-          }}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)" }}
         >
           <nav
             onClick={(e) => e.stopPropagation()}
@@ -135,57 +143,17 @@ export default function NavBar() {
             </div>
 
             {menuLinks.map(([label, href]) => (
-              <a
-                key={href}
-                href={href}
-                onClick={() => setOpen(false)}
-                style={{
-                  display: "block",
-                  padding: "10px 12px",
-                  border: `2px solid ${yellow}`,
-                  borderRadius: 12,
-                  fontWeight: 800,
-                  textDecoration: "none",
-                  color: yellow,
-                  background: "transparent",
-                }}
-              >
+              <a key={href} href={href} onClick={() => setOpen(false)} style={linkStyle(href)}>
                 {label}
               </a>
             ))}
 
             {!userEmail ? (
               <>
-                <a
-                  href="/signup"
-                  onClick={() => setOpen(false)}
-                  style={{
-                    display: "block",
-                    padding: "10px 12px",
-                    border: `2px solid ${yellow}`,
-                    borderRadius: 12,
-                    fontWeight: 800,
-                    textDecoration: "none",
-                    color: yellow,
-                    background: "transparent",
-                  }}
-                >
+                <a href="/signup" onClick={() => setOpen(false)} style={linkStyle("/signup")}>
                   Sign Up
                 </a>
-                <a
-                  href="/signin"
-                  onClick={() => setOpen(false)}
-                  style={{
-                    display: "block",
-                    padding: "10px 12px",
-                    border: `2px solid ${yellow}`,
-                    borderRadius: 12,
-                    fontWeight: 800,
-                    textDecoration: "none",
-                    color: yellow,
-                    background: "transparent",
-                  }}
-                >
+                <a href="/signin" onClick={() => setOpen(false)} style={linkStyle("/signin")}>
                   Sign In
                 </a>
               </>
