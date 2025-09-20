@@ -2,10 +2,15 @@ import NavBar from "./NavBar";
 
 export const metadata = {
   title: "Fanta Tennis",
+  manifest: "/manifest.webmanifest",
+  themeColor: "#0b0f1a",
   appleWebApp: {
     capable: true,              // launches full-screen from Home Screen
     statusBarStyle: "black-translucent",
     title: "FantaTennis"
+  },
+  icons: {
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }]
   }
 };
 
@@ -32,3 +37,4 @@ export default function RootLayout({ children }) {
     </html>
   );
 }
+
