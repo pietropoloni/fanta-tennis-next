@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase-browser";
+import { ADMIN_EMAILS } from "@/lib/config";
 
 export default function NavBar() {
   const [open, setOpen] = useState(false);
@@ -17,7 +18,7 @@ export default function NavBar() {
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getUser();
-      setUserEmail(data?.user?.email || "");
+      setUserEmail((data?.user?.email || "").toLowerCase());
     })();
   }, []);
 
@@ -31,14 +32,16 @@ export default function NavBar() {
   const yellow = "#fff200";
   const blueBorder = "#0084c7";
 
-  // 👇 Added "Leagues"
-  const menuLinks = [
+  const isAdmin = !!userEmail && ADMIN_EMAILS.includes(userEmail);
+
+  const baseLinks = [
     ["Home", "/"],
     ["My Team", "/myteam"],
     ["Leaderboard", "/leaderboard"],
     ["Leagues", "/leagues"],
     ["Account", "/account"],
   ];
+  const menuLinks = isAdmin ? [...baseLinks, ["Admin", "/admin/results"]] : baseLinks;
 
   const linkStyle = (href) => ({
     display: "block",
@@ -182,3 +185,4 @@ export default function NavBar() {
     </header>
   );
 }
+
