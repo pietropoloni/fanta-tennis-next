@@ -155,14 +155,15 @@ export default function AdminResultsPage() {
 
       const lines = csv.split(/\r?\n/);
       const rows = [];
-      let ok = 0,
-        skipped = 0;
+      let ok = 0;
+      let skipped = 0;
 
       for (let raw of lines) {
         const line = raw.trim();
         if (!line || line.startsWith("#")) continue;
+
         // split by comma or tab
-        const parts = line.split(/(?:,|\t)/).map((s) => s.trim());
+        const parts = line.split(/[,\t]/).map((s) => s.trim());
         if (parts.length < 2) {
           logLine(`Skip: "${line}" (need 2 columns)`);
           skipped++;
@@ -237,7 +238,7 @@ export default function AdminResultsPage() {
     }
   }
 
-  // (kept for potential future use)
+  // kept for potential future use
   const ownerIds = useMemo(() => new Set(list.map((t) => t.owner_id)), [list]);
 
   return (
@@ -473,7 +474,7 @@ export default function AdminResultsPage() {
                               overflow: "auto",
                             }}
                           >
-{uploadLog || "Log will appear here…"}
+                            {uploadLog || "Log will appear here…"}
                           </pre>
                         </div>
                       </details>
@@ -489,7 +490,3 @@ export default function AdminResultsPage() {
   );
 }
 
-      )}
-    </main>
-  );
-}
