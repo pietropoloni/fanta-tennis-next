@@ -17,7 +17,7 @@ export default function LeaguesPage() {
   const [err, setErr] = useState("");
   const [user, setUser] = useState(null);
 
-  const [leagues, setLeagues] = useState([]);         // [{id,name,invite_code,owner_id,created_at}]
+  const [leagues, setLeagues] = useState([]);           // [{id,name,invite_code,owner_id,created_at}]
   const [memberMap, setMemberMap] = useState(new Map()); // league_id -> count
   const [amMember, setAmMember] = useState(new Set());   // set of league_ids I’m in
 
@@ -26,9 +26,21 @@ export default function LeaguesPage() {
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState("");
 
+  const origin = () => (typeof window !== "undefined" ? window.location.origin : "");
+  const inviteLink = (code) => `${origin()}/join/${String(code || "").toUpperCase()}`;
+
   function showToast(msg) {
     setToast(msg);
     setTimeout(() => setToast(""), 2000);
+  }
+  function copy(text) {
+    navigator.clipboard.writeText(text).then(
+      () => showToast("Copied!"),
+      () => showToast("Copy failed.")
+    );
+  }
+  function copyLink(code) {
+    copy(inviteLink(code));
   }
 
   // Require sign-in, then load data
@@ -101,13 +113,6 @@ export default function LeaguesPage() {
     }
   }
 
-<a
-  href={`/leagues/${L.id}`}
-  style={{ border: `2px solid ${yellow}`, borderRadius: 10, padding: "6px 10px", background: "transparent", color: yellow, textDecoration: "none" }}
->
-  View
-</a>
-
   async function joinLeague() {
     try {
       const code = (joinCode || "").trim().toUpperCase();
@@ -168,10 +173,7 @@ export default function LeaguesPage() {
   async function deleteLeague(leagueId) {
     try {
       setBusy(true);
-      const { error } = await supabase
-        .from("leagues")
-        .delete()
-        .eq("id", leagueId);
+      const { error } = await supabase.from("leagues").delete().eq("id", leagueId);
       if (error) throw error;
       showToast("League deleted.");
       await loadAll();
@@ -181,13 +183,6 @@ export default function LeaguesPage() {
     } finally {
       setBusy(false);
     }
-  }
-
-  function copy(text) {
-    navigator.clipboard.writeText(text).then(
-      () => showToast("Copied!"),
-      () => showToast("Copy failed.")
-    );
   }
 
   return (
@@ -218,7 +213,7 @@ export default function LeaguesPage() {
                 </button>
               </div>
               <div style={{ marginTop: 8, opacity: 0.9 }}>
-                You’ll get an invite code (e.g. <code>ABC123</code>) to share.
+                You’ll get an invite code and link to share.
               </div>
             </div>
 
@@ -240,7 +235,7 @@ export default function LeaguesPage() {
                 </button>
               </div>
               <div style={{ marginTop: 8, opacity: 0.9 }}>
-                Paste the 6-char code your friend shared.
+                Or share a link like <code>/join/ABC123</code>.
               </div>
             </div>
           </div>
@@ -257,10 +252,18 @@ export default function LeaguesPage() {
                   const mine = amMember.has(L.id);
                   const amOwner = L.owner_id === user?.id;
                   return (
-                    <div key={L.id} style={{
-                      display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap",
-                      border: `2px solid ${yellow}`, borderRadius: 12, padding: 10
-                    }}>
+                    <div
+                      key={L.id}
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                        border: `2px solid ${yellow}`,
+                        borderRadius: 12,
+                        padding: 10,
+                      }}
+                    >
                       <div style={{ fontWeight: 800 }}>{L.name}</div>
                       <div style={{ opacity: 0.9 }}>• Members: <b>{count}</b></div>
                       <div style={{ opacity: 0.9 }}>
@@ -270,10 +273,24 @@ export default function LeaguesPage() {
                           onClick={() => copy(L.invite_code)}
                           style={{ border: `2px solid ${yellow}`, borderRadius: 8, padding: "2px 8px", background: "transparent", color: yellow, cursor: "pointer" }}
                         >
-                          Copy
+                          Copy code
+                        </button>
+                        &nbsp;
+                        <button
+                          onClick={() => copyLink(L.invite_code)}
+                          style={{ border: `2px solid ${yellow}`, borderRadius: 8, padding: "2px 8px", background: "transparent", color: yellow, cursor: "pointer" }}
+                        >
+                          Copy link
                         </button>
                       </div>
+
                       <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                        <a
+                          href={`/leagues/${L.id}`}
+                          style={{ border: `2px solid ${yellow}`, borderRadius: 10, padding: "6px 10px", background: "transparent", color: yellow, textDecoration: "none" }}
+                        >
+                          View
+                        </a>
                         {!mine && (
                           <button
                             onClick={async () => {
