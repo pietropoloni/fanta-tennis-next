@@ -31,10 +31,12 @@ export default function NavBar() {
   const yellow = "#fff200";
   const blueBorder = "#0084c7";
 
+  // 👇 Added "Leagues"
   const menuLinks = [
     ["Home", "/"],
     ["My Team", "/myteam"],
     ["Leaderboard", "/leaderboard"],
+    ["Leagues", "/leagues"],
     ["Account", "/account"],
   ];
 
