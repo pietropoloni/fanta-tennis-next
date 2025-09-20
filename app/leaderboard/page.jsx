@@ -1,8 +1,13 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase-browser";
 
-// Costs (millions) by rank 1..100
+// === Config/theme ===
+const MAX_BUDGET = 500_000_000; // 500M
+const neonBlue = "#00b3ff";
+const yellow = "#fff200";
+
+// Costs (millions) by rank 1..100 (custom table)
 const COST_BY_RANK_M = [
   160,160,100,90,80,75,70,65,60,55,
   62,61,58,56,54,52,50,48,46,44,
@@ -16,12 +21,14 @@ const COST_BY_RANK_M = [
   15,15,15,15,15,15,15,15,15,15
 ];
 const costForRank = (r) => (COST_BY_RANK_M[r - 1] || 0) * 1_000_000;
-const formatM = (n) => `${Math.round(n / 1_000_0) / 100}M`; // 1 decimal place
+const bandFor = (r) => (r <= 10 ? "A" : r <= 30 ? "B" : r <= 50 ? "C" : "D");
+const formatM = (n) => `${Math.round(n / 100_000) / 10}M`; // 1 decimal place
 
 export default function LeaderboardPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+  const [sortBy, setSortBy] = useState("spentDesc"); // spentDesc | nameAsc | picksDesc
 
   useEffect(() => {
     (async () => {
@@ -29,20 +36,19 @@ export default function LeaderboardPage() {
         setLoading(true);
         setErr("");
 
-        // 1) All teams
+        // 1) Teams
         const { data: teams, error: tErr } = await supabase
           .from("teams")
-          .select("id,name")
-          .order("name", { ascending: true });
+          .select("id,name");
         if (tErr) throw tErr;
 
-        // 2) All roster picks (team_id, player_id)
+        // 2) Picks
         const { data: picks, error: pErr } = await supabase
           .from("roster_picks")
           .select("team_id,player_id");
         if (pErr) throw pErr;
 
-        // 3) All players (id -> ranking, name)
+        // 3) Players
         const { data: players, error: plErr } = await supabase
           .from("players")
           .select("id,ranking,name");
@@ -56,27 +62,31 @@ export default function LeaderboardPage() {
           picksByTeam.set(r.team_id, arr);
         }
 
-        const rows = (teams || []).map((t) => {
-          const playerIds = picksByTeam.get(t.id) || [];
-          const detailed = playerIds
+        const computed = (teams || []).map((t) => {
+          const pids = picksByTeam.get(t.id) || [];
+          const plist = pids
             .map((pid) => playerById.get(pid))
             .filter(Boolean)
             .sort((a, b) => a.ranking - b.ranking);
 
-          const spent = detailed.reduce((sum, p) => sum + costForRank(p.ranking), 0);
+          const spent = plist.reduce((sum, p) => sum + costForRank(p.ranking), 0);
+          const budgetLeft = MAX_BUDGET - spent;
+
+          const bandCounts = { A: 0, B: 0, C: 0, D: 0 };
+          plist.forEach((p) => { bandCounts[bandFor(p.ranking)]++; });
+
           return {
             teamId: t.id,
             name: t.name || "(unnamed)",
-            picksCount: detailed.length,
+            picksCount: plist.length,
             spent,
-            picksList: detailed.map((p) => `#${p.ranking} ${p.name}`).join(", ")
+            budgetLeft,
+            bandCounts,
+            picksList: plist.map((p) => `#${p.ranking} ${p.name}`).join(", "),
           };
         });
 
-        // Sort by spent (desc) then name
-        rows.sort((a, b) => b.spent - a.spent || a.name.localeCompare(b.name));
-
-        setRows(rows);
+        setRows(computed);
       } catch (e) {
         console.error(e);
         setErr(String(e.message || e));
@@ -86,40 +96,80 @@ export default function LeaderboardPage() {
     })();
   }, []);
 
+  const sorted = useMemo(() => {
+    const copy = [...rows];
+    if (sortBy === "spentDesc") copy.sort((a, b) => b.spent - a.spent || a.name.localeCompare(b.name));
+    else if (sortBy === "nameAsc") copy.sort((a, b) => a.name.localeCompare(b.name));
+    else if (sortBy === "picksDesc") copy.sort((a, b) => b.picksCount - a.picksCount || a.name.localeCompare(b.name));
+    return copy;
+  }, [rows, sortBy]);
+
   return (
     <main style={{ maxWidth: 1100, margin: "0 auto", padding: 16 }}>
-      <h1>Leaderboard</h1>
-      <p style={{ color: "#6b7280", marginTop: 0 }}>
-        Demo leaderboard using total **budget spent** (points coming later). Costs use the custom table. 
-        Save your team on <a href="/myteam">/myteam</a> to appear here.
+      <h1 style={{ marginBottom: 8 }}>Leaderboard</h1>
+      <p style={{ marginTop: 0 }}>
+        Sorted view of all saved teams. <a href="/myteam" style={{ color: "#0b0", textDecoration: "underline" }}>Save your team</a> to appear here.
       </p>
+
+      {/* Controls */}
+      <div style={{
+        display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap",
+        background: "rgba(0,0,0,0.08)", border: `2px solid ${yellow}`, borderRadius: 12, padding: "8px 12px", marginBottom: 12
+      }}>
+        <label>
+          Sort:&nbsp;
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            style={{
+              background: neonBlue, color: yellow, border: `2px solid ${yellow}`,
+              borderRadius: 8, padding: "6px 8px", fontWeight: 800
+            }}
+          >
+            <option value="spentDesc">Spent (high → low)</option>
+            <option value="picksDesc">Picks (many → few)</option>
+            <option value="nameAsc">Team name (A → Z)</option>
+          </select>
+        </label>
+      </div>
 
       {loading && <p>Loading…</p>}
       {err && <p style={{ color: "crimson" }}>Error: {err}</p>}
 
-      {!loading && !rows.length && !err && (
-        <p style={{ color: "#6b7280" }}>No teams yet.</p>
+      {!loading && !sorted.length && !err && (
+        <p>No teams yet.</p>
       )}
 
-      {!loading && rows.length > 0 && (
+      {!loading && sorted.length > 0 && (
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: "8px 10px" }}>#</th>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: "8px 10px" }}>Team</th>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: "8px 10px" }}>Picks</th>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: "8px 10px" }}>Spent</th>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb", padding: "8px 10px" }}>Selection</th>
+              {["#", "Team", "Picks", "Spent", "Budget Left", "A/B/C/D", "Selection"].map((h) => (
+                <th
+                  key={h}
+                  style={{
+                    textAlign: "left",
+                    borderBottom: `2px solid ${yellow}`,
+                    padding: "8px 10px"
+                  }}
+                >
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, i) => (
+            {sorted.map((r, i) => (
               <tr key={r.teamId}>
-                <td style={{ padding: "8px 10px", borderBottom: "1px solid #f2f2f2" }}>{i + 1}</td>
-                <td style={{ padding: "8px 10px", borderBottom: "1px solid #f2f2f2" }}>{r.name}</td>
-                <td style={{ padding: "8px 10px", borderBottom: "1px solid #f2f2f2" }}>{r.picksCount}</td>
-                <td style={{ padding: "8px 10px", borderBottom: "1px solid #f2f2f2" }}>{formatM(r.spent)}</td>
-                <td style={{ padding: "8px 10px", borderBottom: "1px solid #f2f2f2", color: "#6b7280" }}>
+                <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.25)" }}>{i + 1}</td>
+                <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.25)" }}>{r.name}</td>
+                <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.25)" }}>{r.picksCount}</td>
+                <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.25)" }}>{formatM(r.spent)}</td>
+                <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.25)" }}>{formatM(r.budgetLeft)}</td>
+                <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.25)" }}>
+                  A <b>{r.bandCounts.A}</b> &nbsp; B <b>{r.bandCounts.B}</b> &nbsp; C <b>{r.bandCounts.C}</b> &nbsp; D <b>{r.bandCounts.D}</b>
+                </td>
+                <td style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.25)", opacity: 0.9 }}>
                   {r.picksList || "—"}
                 </td>
               </tr>
@@ -130,3 +180,4 @@ export default function LeaderboardPage() {
     </main>
   );
 }
+
