@@ -101,6 +101,13 @@ export default function LeaguesPage() {
     }
   }
 
+<a
+  href={`/leagues/${L.id}`}
+  style={{ border: `2px solid ${yellow}`, borderRadius: 10, padding: "6px 10px", background: "transparent", color: yellow, textDecoration: "none" }}
+>
+  View
+</a>
+
   async function joinLeague() {
     try {
       const code = (joinCode || "").trim().toUpperCase();
