@@ -1,17 +1,13 @@
 import NavBar from "./NavBar";
 
-export const metadata = { title: "Fanta Tennis" };
-
-// app/layout.jsx
 export const metadata = {
+  title: "Fanta Tennis",
   appleWebApp: {
-    capable: true,              // <-- key part: launches full-screen from Home Screen
+    capable: true,              // launches full-screen from Home Screen
     statusBarStyle: "black-translucent",
     title: "FantaTennis"
   }
 };
-
-// (your existing RootLayout component stays below)
 
 export default function RootLayout({ children }) {
   const neonBlue = "#00b3ff";
