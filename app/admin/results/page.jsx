@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/lib/supabase-browser";
+import { useEffect, useState, useMemo } from "react";
+import { ADMIN_EMAILS } from "@/lib/config";
 
 const neonBlue = "#00b3ff";
 const yellow = "#fff200";
