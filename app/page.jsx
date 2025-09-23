@@ -1,4 +1,4 @@
-import ATPCalendar from './_components/ATPCalendar';
+import ATPCalendar from './_components/ATPCalendar'
 
 export default function Home() {
   return (
