@@ -1,62 +1,73 @@
 'use client';
+
 import { useEffect, useState } from 'react';
 
-export default function ATPCalendar() {
-  const [data, setData] = useState(null);
-  const [err, setErr] = useState(null);
-  const [loading, setLoading] = useState(true);
+export default function AtpCalendar() {
+  const [state, setState] = useState({ loading: true, error: null, data: null });
 
   useEffect(() => {
+    let alive = true;
     async function load() {
       try {
-        const res = await fetch('/api/tennis/categories', { cache: 'no-store' });
+        const res = await fetch('/api/tennis/tournament/category/3', { cache: 'no-store' });
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(`API ${res.status}: ${txt}`);
+        }
         const json = await res.json();
-        if (!res.ok) throw new Error(json?.error || 'Request failed');
-        setData(json);
-      } catch (e) {
-        setErr(String(e));
-      } finally {
-        setLoading(false);
+        if (alive) setState({ loading: false, error: null, data: json });
+      } catch (err) {
+        if (alive) setState({ loading: false, error: err?.message || String(err), data: null });
       }
     }
     load();
+    return () => { alive = false; };
   }, []);
 
-  if (loading) return <div>ATP Calendar — loading…</div>;
-  if (err) return <div>ATP Calendar — error: {err}</div>;
-
-  const groups = Array.isArray(data?.groups) ? data.groups : [];
-
-  const now = new Date();
-  const monthName = now.toLocaleString('en-US', { month: 'long' });
-  const nextMonthName = new Date(now.getFullYear(), now.getMonth() + 1, 1)
-    .toLocaleString('en-US', { month: 'long' });
-
-  const current = groups.find(g => (g.name || '').toLowerCase() === monthName.toLowerCase());
-  const next = groups.find(g => (g.name || '').toLowerCase() === nextMonthName.toLowerCase());
-
-  function renderGroup(g) {
-    if (!g?.uniqueTournaments?.length) return <div style={{ opacity: 0.8 }}>No tournaments listed.</div>;
+  if (state.loading) {
     return (
-      <ul style={{ margin: 0, paddingLeft: '1rem' }}>
-        {g.uniqueTournaments.slice(0, 12).map(t => (
-          <li key={t.id}>{t.name}</li>
-        ))}
-      </ul>
+      <section className="p-4">
+        <h2 className="text-xl font-semibold">ATP Calendar</h2>
+        <p className="mt-2 text-sm opacity-70">Loading…</p>
+      </section>
     );
   }
 
+  if (state.error) {
+    return (
+      <section className="p-4">
+        <h2 className="text-xl font-semibold">ATP Calendar</h2>
+        <p className="mt-2 text-sm text-red-600">Error: {state.error}</p>
+      </section>
+    );
+  }
+
+  const groups = state.data?.groups ?? [];
+  const tournaments = groups.flatMap(g =>
+    (g.uniqueTournaments ?? []).map(t => ({ ...t, month: g.name }))
+  );
+
+  // De-duplicate by id and show the first 20 items
+  const first20 = Array.from(new Map(tournaments.map(t => [t.id, t])).values()).slice(0, 20);
+
   return (
-    <section style={{ border: '1px solid #e5e5e5', borderRadius: 12, padding: 16, marginTop: 24 }}>
-      <h2 style={{ marginTop: 0 }}>ATP Calendar</h2>
-      <div>
-        <h3 style={{ marginBottom: 8 }}>{monthName}</h3>
-        {renderGroup(current)}
-      </div>
-      <div style={{ marginTop: 16 }}>
-        <h3 style={{ marginBottom: 8 }}>{nextMonthName}</h3>
-        {renderGroup(next)}
-      </div>
+    <section className="p-4">
+      <h2 className="text-xl font-semibold">ATP Calendar</h2>
+      {first20.length === 0 ? (
+        <p className="mt-2 text-sm opacity-70">No tournaments found.</p>
+      ) : (
+        <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {first20.map(t => (
+            <li key={t.id} className="rounded-2xl border p-4 shadow-sm">
+              <div className="text-base font-medium">{t.name}</div>
+              <div className="mt-1 text-sm opacity-70">
+                {t.category?.name ?? 'ATP'}{t.month ? ` · ${t.month}` : ''}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
+
