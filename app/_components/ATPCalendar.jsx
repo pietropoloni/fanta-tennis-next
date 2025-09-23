@@ -9,7 +9,7 @@ export default function ATPCalendar() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch('/api/tennis/tournament/category/3', { cache: 'no-store' });
+        const res = await fetch('/api/tennis/categories', { cache: 'no-store' });
         const json = await res.json();
         if (!res.ok) throw new Error(json?.error || 'Request failed');
         setData(json);
