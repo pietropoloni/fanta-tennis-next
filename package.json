@@ -13,4 +13,9 @@
     "react": "latest",
     "react-dom": "latest"
   }
+  {
+  "scripts": {
+    "scrape:rankings": "node src/scrape-rankings.js"
+  }
+}
 }
