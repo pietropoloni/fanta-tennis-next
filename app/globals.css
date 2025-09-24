@@ -1,0 +1,94 @@
+:root {
+  --bg-start: #eff6ff; /* blue-50 */
+  --bg-end: #dbeafe;   /* blue-100 */
+  --primary: #2563eb;  /* blue-600 */
+  --primary-hover: #1d4ed8; /* blue-700 */
+  --secondary: #16a34a; /* green-600 */
+  --secondary-hover: #15803d; /* green-700 */
+  --text-main: #1f2937; /* gray-800 */
+  --text-muted: #4b5563; /* gray-600 */
+  --card-bg: #ffffff;
+  --shadow: 0 10px 25px rgba(0,0,0,0.08);
+}
+
+html, body {
+  height: 100%;
+}
+
+.home {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: linear-gradient(180deg, var(--bg-start), var(--bg-end));
+}
+
+.home-card {
+  width: 100%;
+  max-width: 460px;
+  text-align: center;
+  background: var(--card-bg);
+  border-radius: 24px;
+  padding: 28px 22px;
+  box-shadow: var(--shadow);
+}
+
+.home-icon {
+  border-radius: 24px;
+  margin: 0 auto 16px;
+  display: block;
+}
+
+.home-title {
+  font-size: clamp(22px, 4.8vw, 28px);
+  font-weight: 800;
+  color: var(--primary);
+  margin: 4px 0 8px;
+  letter-spacing: 0.2px;
+}
+
+.home-subtitle {
+  font-size: 16px;
+  color: var(--text-muted);
+  margin: 0 0 20px;
+}
+
+.home-actions {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.btn {
+  display: inline-block;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 16px;
+  font-weight: 700;
+  text-decoration: none;
+  text-align: center;
+  transition: background 0.18s ease, transform 0.05s ease;
+  color: white;
+  will-change: transform;
+  box-shadow: var(--shadow);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn-primary {
+  background: var(--primary);
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+.btn-secondary {
+  background: var(--secondary);
+}
+
+.btn-secondary:hover {
+  background: var(--secondary-hover);
+}
