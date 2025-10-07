@@ -3,7 +3,7 @@ import NavBar from "./NavBar";
 export const metadata = {
   title: "Fanta Tennis",
   manifest: "/manifest.webmanifest",
-  themeColor: "#0b0f1a",
+  themeColor: "#0b0f1a", // dark blue (kept to match your new scheme)
   appleWebApp: {
     capable: true,              // launches full-screen from Home Screen
     statusBarStyle: "black-translucent",
@@ -15,8 +15,8 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
-  const neonBlue = "#00b3ff";
-  const yellow = "#fff200";
+  const white = "#ffffff";     // replaces the light blue page bg
+  const darkBlue = "#0b0f1a";  // replaces the yellow text color
 
   return (
     <html lang="en">
@@ -24,8 +24,8 @@ export default function RootLayout({ children }) {
         style={{
           margin: 0,
           fontFamily: "system-ui, sans-serif",
-          background: neonBlue,
-          color: yellow,
+          background: white,
+          color: darkBlue,
           minHeight: "100vh",
         }}
       >
@@ -37,4 +37,3 @@ export default function RootLayout({ children }) {
     </html>
   );
 }
-
