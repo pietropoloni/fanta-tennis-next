@@ -5,7 +5,7 @@ export const metadata = {
   manifest: "/manifest.webmanifest",
   themeColor: "#0b0f1a", // dark blue
   appleWebApp: {
-    capable: true,
+    capable: true,              // launches full-screen from Home Screen
     statusBarStyle: "black-translucent",
     title: "FantaTennis",
   },
@@ -15,8 +15,8 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
-  const white = "#ffffff";     // background
-  const darkBlue = "#0b0f1a";  // primary / link / button
+  const white = "#ffffff";     // page background
+  const darkBlue = "#0b0f1a";  // links/buttons/text
 
   return (
     <html lang="en">
@@ -31,7 +31,7 @@ export default function RootLayout({ children }) {
       >
         <NavBar />
 
-        {/* Global styles to force dark-blue links and buttons */}
+        {/* Global styles for links & buttons in dark blue */}
         <style>{`
           a {
             color: ${darkBlue};
@@ -55,13 +55,11 @@ export default function RootLayout({ children }) {
             opacity: 0.6;
             cursor: not-allowed;
           }
-          /* Optional outline style if you use it anywhere */
           .btn-outline, .button-outline {
             background: transparent;
             color: ${darkBlue};
             border: 1px solid ${darkBlue};
           }
-          /* Better focus visibility on keyboard navigation */
           a:focus-visible,
           button:focus-visible,
           [role="button"]:focus-visible {
@@ -73,7 +71,13 @@ export default function RootLayout({ children }) {
             background: ${darkBlue};
             color: #ffffff;
           }
+          body { margin: 0; }
         `}</style>
 
-        <div style={{ maxWidth: 1100,
-
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: 16 }}>
+          {children}
+        </div>
+      </body>
+    </html>
+  );
+}
